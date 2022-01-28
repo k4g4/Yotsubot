@@ -1,4 +1,5 @@
 const { YotsubotCommand } = require("../yotsubot_command.js");
+const { Yotsubank } = require("./yotsubank.js");
 
 module.exports = [
     new YotsubotCommand(
@@ -22,7 +23,7 @@ module.exports = [
 	new YotsubotCommand(
         "user",
         "Replies with user info.")
-        
+
         .onExecute(async (yotsubot, interaction) => {
             await interaction.reply("User info.");
         })
