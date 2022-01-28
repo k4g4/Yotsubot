@@ -2,26 +2,45 @@ const { MessageCollector } = require("discord.js");
 const { writeFile } = require("fs");
 const bankData = require("./bank_data.json");
 
-const writeBank = () => writeFile("bank_data.json", JSON.stringify(bankData, null, 2), err => {});
+const writeBank = () => writeFile("./bank_data.json", JSON.stringify(bankData, null, 2), err => {});
+
+getToday = () => new Date().toLocaleDateString("en-US");
 
 class Yotsubank {
     constructor(dm) {
         this.userId = dm.recipient.id;
-        this.collector = dm.createMessageCollector({ filter: m => this.filter(m) });
-        this.collector.on("collect", m => this.handleCollect(m));
+        this.collector = dm.createMessageCollector({ filter: m => this.bankFilter(m) });
+        this.collector.on("collect", m => this.handleTransaction(m));
         if (!(this.userId in bankData)) {
             bankData[this.userId] =
             {
                 balance: 0,
-                lastExpense: new Date(),
+                allowance: 0,
+                lastExpense: getToday(),
             };
             writeBank();
         }
     }
 
-    filter(message) {
+    bankFilter(message) {
         if (message.author.id != this.userId) return false;
         return /^\+?\d*(\.\d+)?$/.test(message.content);
+    }
+
+    get allowance() {
+        return bankData[this.userId].allowance;
+    }
+
+    set allowance(newAllowance) {
+        bankData[this.userId].allowance = newAllowance;
+        writeBank();
+    }
+
+    allowanceSinceLastExpense() {
+        const todayMidnight = new Date(getToday());
+        const lastExpense = new Date(bankData[this.userId].lastExpense);
+        const daysSinceLastExpense = (todayMidnight - lastExpense) / (1000 * 60 * 60 * 24);
+        return daysSinceLastExpense * this.allowance;
     }
 
     get balance() {
@@ -30,15 +49,16 @@ class Yotsubank {
 
     set balance(newBalance) {
         bankData[this.userId].balance = newBalance;
+        bankData[this.userId].lastExpense = getToday();
         writeBank();
     }
 
-    async handleCollect(message) {
+    async handleTransaction(message) {
         const decrement = (message.content[0] !== "+") ?
                           Number(message.content) :
                           -Number(message.content);
-
-        this.balance -= decrement;
+        const delta = this.allowanceSinceLastExpense() - decrement;
+        if (delta) this.balance += delta;
         await message.reply(`**$${this.balance.toFixed(2)}**`.replace("$-", "-$"));
     }
 

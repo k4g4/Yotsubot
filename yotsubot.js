@@ -1,9 +1,20 @@
-const { Client } = require("discord.js");
+const { Client, Collection } = require("discord.js");
+const { readdirSync } = require("fs");
 const { Yotsubank } = require("./yotsubank.js");
 
 class Yotsubot extends Client {
     constructor({ intents }) {
         super({ intents });
+        
+        this.commands = new Collection();
+        const commandFiles = readdirSync("./commands").filter(file => file.endsWith(".js"));
+        for (const commandFile of commandFiles)
+        {
+            const commands = require(`./commands/${commandFile}`);
+            for (const command of commands) {
+                this.commands.set(command.name, command);
+            }
+        }
 
         this.once("ready", async () => {
             console.log("Yotsubot is online!");
@@ -14,16 +25,15 @@ class Yotsubot extends Client {
         this.on("interactionCreate", async interaction => {
             if (!interaction.isCommand()) return;
         
-            const { commandName } = interaction;
-        
-            if (commandName === "bank") {
-                const dm = await interaction.user.createDM();
-                this.banks.push(new Yotsubank(dm));
-                interaction.reply("New bank account created successfully.");
-            } else if (commandName === "ping") {
-                await interaction.reply("Pong!");
-            } else if (commandName === "user") {
-                await interaction.reply("User info.");
+            const command = this.commands.get(interaction.commandName);
+
+            if (!command) return;
+
+            try {
+                await command.execute(this, interaction);
+            } catch (error) {
+                console.error(error);
+                await interaction.reply({ content: "An error occurred.", ephemeral: true });
             }
         });
     }
