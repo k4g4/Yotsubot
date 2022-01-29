@@ -5,7 +5,7 @@ const { Yotsubank } = require("./yotsubank.js");
 class Yotsubot extends Client {
     constructor({ intents }) {
         super({ intents });
-        
+                
         this.commands = new Collection();
         const commandFiles = readdirSync("./commands").filter(file => file.endsWith(".js"));
         for (const commandFile of commandFiles)
@@ -19,21 +19,25 @@ class Yotsubot extends Client {
         this.once("ready", async () => {
             console.log("Yotsubot is online!");
 
-            this.banks = await Yotsubank.createBanks(this);
+            this.banks = new Collection();
+            await Yotsubank.onStartup(this);
         });
         
         this.on("interactionCreate", async interaction => {
             if (!interaction.isCommand()) return;
         
             const command = this.commands.get(interaction.commandName);
-
             if (!command) return;
 
+            const subcommandName = interaction.options.getSubcommand(false);
+            const execute = subcommandName ?
+                command.subcommands.get(subcommandName).execute :
+                command.execute;
+
             try {
-                await command.execute(this, interaction);
+                await execute(this, interaction);
             } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: "An error occurred.", ephemeral: true });
+                await interaction.reply({ content: error, ephemeral: true });
             }
         });
     }

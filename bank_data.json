@@ -1,7 +1,27 @@
 {
   "204830788729044992": {
-    "balance": -371,
+    "balance": -348,
     "allowance": 30,
-    "lastExpense": "1/28/2022"
+    "lastExpense": "1/29/2022"
+  },
+  "193012849109499904": {
+    "balance": 0,
+    "allowance": 0,
+    "lastExpense": "1/29/2022"
+  },
+  "152581443304816640": {
+    "balance": 1,
+    "allowance": 0,
+    "lastExpense": "1/29/2022"
+  },
+  "483047514006618122": {
+    "balance": 0,
+    "allowance": 0,
+    "lastExpense": "1/29/2022"
+  },
+  "196604757199028224": {
+    "balance": -1,
+    "allowance": 0,
+    "lastExpense": "1/29/2022"
   }
 }

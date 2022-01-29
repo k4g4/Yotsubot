@@ -7,7 +7,7 @@ const body = [];
 const commandFiles = readdirSync("./commands").filter(file => file.endsWith(".js"));
 for (const commandFile of commandFiles) {
 	const commands = require(`./commands/${commandFile}`);
-	body.concat(Object.values(commands).map(command => command.toJSON()));
+	body.push(...commands.map(command => command.toJSON()));
 }
 
 const rest = new REST({ version: "9" }).setToken(botToken);
