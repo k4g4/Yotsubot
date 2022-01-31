@@ -5,7 +5,7 @@ const { Options, MessageAttachment } = require("discord.js");
 executeAddImage = async (executable, executeArgs) => {
     const imageUrl = executeArgs.options.getString("image");
     if (!imageUrl) {
-
+        
     }
     executeArgs.image = await Jimp.read(imageUrl);
     executeArgs.imageName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);

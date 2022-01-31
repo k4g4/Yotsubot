@@ -31,9 +31,7 @@ class Yotsubot extends Client {
             if (!command) return;
             
             const subcommandName = interaction.options.getSubcommand(false);
-            const executable = subcommandName ?
-                command.subcommands.get(subcommandName) :
-                command;
+            const executable = command.subcommands.get(subcommandName) || command;
             
             const executeArgs = {
                 ...interaction,
@@ -41,9 +39,9 @@ class Yotsubot extends Client {
                 reply: (...args) => interaction.reply(...args)
             };
             try {
-                await command.execute(executeArgs);
-            } catch (error) {
-                await interaction.reply({ content: error.stack, ephemeral: true });
+                await executable.execute(executeArgs);
+            } catch (error) {                
+                await interaction.reply({ content: error.stack || error, ephemeral: true });
             }
         });
     }
