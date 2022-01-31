@@ -3,9 +3,14 @@ const Jimp = require("jimp");
 const { Options, MessageAttachment } = require("discord.js");
 
 executeAddImage = async (executable, executeArgs) => {
-    const imageUrl = executeArgs.options.getString("image");
+    let imageUrl = executeArgs.options.getString("image");
+
     if (!imageUrl) {
-        
+        const channel = await executeArgs.bot.channels.fetch(executeArgs.channelId);
+        const messages = await channel.messages.fetch({ limit: 20 });
+        const message = messages.find(message => message.attachments.size > 0);
+
+        imageUrl = message.attachments.first().url;
     }
     executeArgs.image = await Jimp.read(imageUrl);
     executeArgs.imageName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
