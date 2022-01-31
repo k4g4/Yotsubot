@@ -2,3 +2,4 @@ yotsubot_secrets.json
 bank_data.json
 debug.log
 .vscode
+node_modules

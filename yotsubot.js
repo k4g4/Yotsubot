@@ -1,5 +1,6 @@
 const { Client, Collection } = require("discord.js");
 const { readdirSync } = require("fs");
+const { promisify } = require("util");
 const { Yotsubank } = require("./yotsubank.js");
 
 class Yotsubot extends Client {
@@ -25,21 +26,30 @@ class Yotsubot extends Client {
         
         this.on("interactionCreate", async interaction => {
             if (!interaction.isCommand()) return;
-        
+            
             const command = this.commands.get(interaction.commandName);
             if (!command) return;
-
+            
             const subcommandName = interaction.options.getSubcommand(false);
-            const execute = subcommandName ?
-                command.subcommands.get(subcommandName).execute :
-                command.execute;
-
+            const executable = subcommandName ?
+                command.subcommands.get(subcommandName) :
+                command;
+            
+            const executeArgs = {
+                ...interaction,
+                bot: this,
+                reply: (...args) => interaction.reply(...args)
+            };
             try {
-                await execute(this, interaction);
+                await command.execute(executeArgs);
             } catch (error) {
-                await interaction.reply({ content: error, ephemeral: true });
+                await interaction.reply({ content: error.stack, ephemeral: true });
             }
         });
+    }
+
+    async wait (timeout) {
+        await promisify(setTimeout)(timeout);
     }
 }
 

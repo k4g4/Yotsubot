@@ -13,11 +13,10 @@ module.exports = [
             "Register",
             "Registers a new bank account if the user doesn't have one.",
     
-            async (yotsubot, interaction) => {
-                const userId = interaction.user.id;
-                if (Yotsubank.hasAccount(userId)) throw "You already have an account.";
-                await Yotsubank.registerBank(yotsubot, userId);
-                await interaction.reply("New bank account created.");
+            async ({ bot, user, reply }) => {
+                if (Yotsubank.hasAccount(user.id)) throw "You already have an account.";
+                await Yotsubank.registerBank(bot, user.id);
+                await reply("New bank account created.");
             }
         ),
     
@@ -25,45 +24,43 @@ module.exports = [
             "Withdraw",
             "Withdraws from the bank account.",
     
-            async (yotsubot, interaction) => {
-                const bank = yotsubot.banks.get(interaction.user.id);
+            async ({ bot, user, options, reply }) => {
+                const bank = bot.banks.get(user.id);
                 if (!bank) throw NO_ACC_ERROR;
-                bank.transact(-interaction.options.getNumber("amount"));
-                await interaction.reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
+                bank.transact(-options.getNumber("amount"));
+                await reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
             }
         )
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to withdraw.")
-                    .setMinValue(0).setMaxValue(10000).setRequired(true)
-            ),
+                    .setMinValue(0).setMaxValue(10000).setRequired(true)),
     
         new YotsubotSubcommand(
             "Deposit",
             "Deposits to the bank account.",
     
-            async (yotsubot, interaction) => {
-                const bank = yotsubot.banks.get(interaction.user.id);
+            async ({ bot, user, options, reply }) => {
+                const bank = bot.banks.get(user.id);
                 if (!bank) throw NO_ACC_ERROR;
-                bank.transact(interaction.options.getNumber("amount"));
-                await interaction.reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
+                bank.transact(options.getNumber("amount"));
+                await reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
             }
         )
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to deposit.")
-                    .setMinValue(0).setMaxValue(10000).setRequired(true)
-            ),
+                    .setMinValue(0).setMaxValue(10000).setRequired(true)),
     
         new YotsubotSubcommand(
             "Balance",
             "Gets the bank account's balance.",
     
-            async (yotsubot, interaction) => {
-                const bank = yotsubot.banks.get(interaction.user.id);
+            async ({ bot, user, reply }) => {
+                const bank = bot.banks.get(user.id);
                 if (!bank) throw NO_ACC_ERROR;
                 bank.transact(0);
-                await interaction.reply(`Your balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
+                await reply(`Your balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
             }
         ),
     
@@ -71,17 +68,16 @@ module.exports = [
             "Allowance",
             "Sets the daily allowance.",
     
-            async (yotsubot, interaction) => {
-                const bank = yotsubot.banks.get(interaction.user.id);
+            async ({ bot, user, options, reply }) => {
+                const bank = bot.banks.get(user.id);
                 if (!bank) throw NO_ACC_ERROR;
-                bank.allowance = interaction.options.getNumber("amount");
-                await interaction.reply(`Allowance has been set to \`${Yotsubank.toMoney(bank.allowance)}\`.`);
+                bank.allowance = options.getNumber("amount");
+                await reply(`Allowance has been set to \`${Yotsubank.toMoney(bank.allowance)}\`.`);
             }
         )
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to receive each day.")
-                    .setMinValue(0).setMaxValue(1000).setRequired(true)
-            )
+                    .setMinValue(0).setMaxValue(1000).setRequired(true))
     )
 ];

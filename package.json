@@ -1,0 +1,25 @@
+{
+  "name": "yotsubot",
+  "version": "1.0.0",
+  "description": "A discord bot in Javascript.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/k4g4/Yotsubot.git"
+  },
+  "author": "kaga",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/k4g4/Yotsubot/issues"
+  },
+  "homepage": "https://github.com/k4g4/Yotsubot#readme",
+  "dependencies": {
+    "@discordjs/builders": "^0.12.0",
+    "discord-api-types": "^0.26.1",
+    "discord.js": "^13.6.0",
+    "jimp": "^0.16.1"
+  }
+}

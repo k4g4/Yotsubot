@@ -2,25 +2,33 @@ const { SlashCommandBuilder, SlashCommandSubcommandBuilder } = require("@discord
 const { Collection } = require("discord.js");
 
 class YotsubotSubcommand extends SlashCommandSubcommandBuilder {
-    constructor(name, description, execute) {
+    constructor(name, description, executor) {
         super();
         this.setName(name.toLowerCase());
         this.setDescription(description);
-        this.execute = execute;
+        this.executor = executor;
+    }
+
+    async execute(executeArgs) {
+        return await this.executor(executeArgs);
     }
 }
 
 class YotsubotCommand extends SlashCommandBuilder {
-    constructor(name, description, execute, ...subcommands) {
+    constructor(name, description, executor, ...subcommands) {
         super();
         this.setName(name.toLowerCase());
         this.setDescription(description);
-        this.execute = execute;
+        this.executor = executor;
         this.subcommands = new Collection();
         for (const subcommand of subcommands) {
             super.addSubcommand(subcommand);
             this.subcommands.set(subcommand.name, subcommand);
         }
+    }
+
+    async execute(executeArgs) {
+        return await this.executor(executeArgs);
     }
 }
 
