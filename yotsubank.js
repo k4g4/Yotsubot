@@ -1,4 +1,3 @@
-const { MessageCollector } = require("discord.js");
 const { writeFile } = require("fs");
 const bankData = require("./bank_data.json");
 

@@ -8,7 +8,7 @@ module.exports = [
         "Replies with the bot's ping.",
 
         async ({ bot, reply }) => {
-            await reply(`My ping is \`${bot.ws.ping}\` ms.`);
+            await reply(`My ping is \` ${bot.ws.ping} \` ms.`);
         }
     ),
 
@@ -17,8 +17,8 @@ module.exports = [
         "Gets user info for yourself or a server member.",
 
         async ({ user, member, options, reply }) => {
-            const targetUser = options.getUser("member") || user;
-            const targetMember = options.getMember("member") || member;
+            const targetUser = options.getUser("member") ?? user;
+            const targetMember = options.getMember("member") ?? member;
 
             await targetUser.fetch();
             const embed = new MessageEmbed()

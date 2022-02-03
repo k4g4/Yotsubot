@@ -1,3 +1,3 @@
 # Yotsubot
 
-This is a personal bot.
+This is a personal Discord bot written in Javascript.

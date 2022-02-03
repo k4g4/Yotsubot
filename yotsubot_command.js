@@ -25,6 +25,12 @@ class YotsubotCommand extends SlashCommandBuilder {
             super.addSubcommand(subcommand);
             this.subcommands.set(subcommand.name, subcommand);
         }
+        this.ownerOnly = false;
+    }
+
+    setOwnerOnly() {
+        this.ownerOnly = true;
+        return this.setDefaultPermission(false);
     }
 
     async execute(executeArgs) {

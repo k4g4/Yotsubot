@@ -13,5 +13,5 @@ for (const commandFile of commandFiles) {
 const rest = new REST({ version: "9" }).setToken(botToken);
 
 rest.put(Routes.applicationCommands(clientId), { body })
-	.then(() => console.log("Successfully registered application commands."))
+	.then(() => console.log("Successfully registered commands."))
 	.catch(console.error);
