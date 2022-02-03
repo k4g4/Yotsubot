@@ -3,16 +3,26 @@ const Jimp = require("jimp");
 const request = require("phin");
 const { GifUtil, GifFrame, GifCodec, BitmapImage } = require("gifwrap");
 const { MessageAttachment } = require("discord.js");
+const { errors } = require("jshint/src/messages");
 
-const urlFilename = url => url.substring(url.lastIndexOf("/") + 1, url.indexOf("?"));
+const urlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif)(\?.*)?)$/i;
+const emoteIdRegex = /<a?:.*:(.*)>/;
+const userIdRegex = /<@!?(.*)>/;
+
+const urlFilename = url =>
+    url.substring(
+        url.lastIndexOf("/") + 1,
+        (url.indexOf("?") !== -1) ? url.indexOf("?") : url.length);
+
+const getAvatar = target => target.displayAvatarURL({ size: 4096, format: "png", dynamic: true });
 
 class YotsubotImage {
     constructor(data, name, mimetype) {
         this.name = name;
         this.isGif = mimetype === Jimp.MIME_GIF;
         this.data = data;
-        
-        if (![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)) {
+
+        if (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)) {
             throw "Unsupported file type.";
         }
     }
@@ -45,18 +55,61 @@ class YotsubotImage {
             return await this.frames[0].getBufferAsync(Jimp.AUTO);
         }
     }
+
+    async getAttachment() {
+        return new MessageAttachment(await this.getBuffer(), this.name);
+    }
 }
 
 async function addImageArg(executeArgs) {
-    let imageUrl = executeArgs.options.getString("image");
+    let imageUrl;
+    const guild = executeArgs.getGuild();
+    const imageOption = executeArgs.options.getString("image");
 
-    if (!imageUrl) {
+    if (!imageOption) {
         const channel = await executeArgs.bot.channels.fetch(executeArgs.channelId);
         const messages = await channel.messages.fetch({ limit: 20 });
-        const message = messages.find(message => message.attachments.size > 0);
+        const message = messages.find(message =>
+            message.attachments.size > 0 || urlRegex.test(message.content));
 
-        imageUrl = message.attachments.first().url;
+        imageUrl =
+            (message.attachments.size > 0) ?
+            message.attachments.first().url :
+            urlRegex.exec(message.content)[1];
+    } else if (emoteIdRegex.test(imageOption)) {
+        const emoteId = emoteIdRegex.exec(imageOption)[1];
+        if (!guild) {
+            throw executeArgs.errors.FOREIGN_EMOTE;
+        }
+        let emote;
+        try {
+            emote = await guild.emojis.fetch(emoteId);
+        } catch (error) {
+            throw errors.FOREIGN_EMOTE;
+        }
+
+        imageUrl = emote.url;
+    } else if (userIdRegex.test(imageOption)) {
+        const userId = userIdRegex.exec(imageOption)[1];
+        let member;
+        try {
+            member = await guild.members.fetch(userId);
+        } catch (error) {
+            try {
+                member = await executeArgs.bot.users.fetch(userId);
+            } catch (error) {
+                throw executeArgs.errors.USER_NOT_FOUND;
+            }
+        }
+
+        imageUrl = getAvatar(member);
+    } else if (urlRegex.test(imageOption)) {
+        imageUrl = imageOption;
     }
+    else {
+        throw "The ` image ` option must be a valid URL, user, or emote.";
+    }
+
     const filename = urlFilename(imageUrl);
     const response = await request(imageUrl);
     const mimetype = response.headers["content-type"];
@@ -79,6 +132,9 @@ class ImageSubcommand extends YotsubotSubcommand {
     }
 
     async execute(executeArgs) {
+        executeArgs.reply = executeArgs.editReply;
+
+        await executeArgs.deferReply();
         await addImageArg(executeArgs);
         return await this.executor(executeArgs);
     }
@@ -90,6 +146,9 @@ class ImageCommand extends YotsubotCommand {
     }
 
     async execute(executeArgs) {
+        executeArgs.reply = executeArgs.editReply;
+
+        await executeArgs.deferReply();
         await addImageArg(executeArgs);
         return await this.executor(executeArgs);
     }
@@ -106,7 +165,7 @@ module.exports = [
                 options.getUser("member") ??
                 member ??
                 user;
-            const avatarUrl = target.displayAvatarURL({ size: 4096, format: "png", dynamic: true });
+            const avatarUrl = getAvatar(target);
             const avatar = (await request(avatarUrl)).body;
             const filename = urlFilename(avatarUrl);
             const attachment = new MessageAttachment(avatar, filename);
@@ -128,15 +187,14 @@ module.exports = [
             if (!guild) throw errors.NOT_IN_GUILD;
             
             const emoteInput = options.getString("emote");
-            const emoteIdRegex = /<a?:.*:(.*)>/;
             if (!emoteIdRegex.test(emoteInput)) throw "Invalid emote.";
             const emoteId = emoteIdRegex.exec(emoteInput)[1];
             let emote;
             try {
                 emote = await guild.emojis.fetch(emoteId);
             } catch (error) {
-                throw "The emote must belong to this server.";
-            }  
+                throw errors.FOREIGN_EMOTE;
+            }
             const emoteImage = (await request(emote.url)).body;
             const filename = urlFilename(emote.url);
             const attachment = new MessageAttachment(emoteImage, filename);
@@ -156,9 +214,7 @@ module.exports = [
 
         async ({ image, reply }) => {
             image.forEachFrame(frame => frame.invert());
-            const buffer = await image.getBuffer();
-            const attachment = new MessageAttachment(buffer, image.name);
-            await reply({ files: [attachment] });
+            await reply({ files: [ await image.getAttachment() ] });
         }
     )
         .addImageOption(),
@@ -167,13 +223,10 @@ module.exports = [
         "Scale",
         "Scales an image.",
 
-        async ({ image, options, deferReply, editReply }) => {
-            await deferReply();
-            scale = options.getNumber("scale");
+        async ({ image, options, reply }) => {
+            const scale = options.getNumber("scale");
             image.forEachFrame(frame => frame.scale(scale));
-            const buffer = await image.getBuffer();
-            const attachment = new MessageAttachment(buffer, image.name);
-            await editReply({ files: [attachment] });
+            await reply({ files: [ await image.getAttachment() ] });
         }
     )
         .addNumberOption(option =>

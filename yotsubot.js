@@ -37,13 +37,20 @@ class Yotsubot extends Client {
                 getGuild: () => interaction.guild,
                 errors: {
                     NOT_IN_GUILD: "You must be in a server to use this command.",
+                    FOREIGN_EMOTE: "The emote must belong to this server.",
+                    USER_NOT_FOUND: "Couldn't find the user."
                 }
             };
 
             try {
                 await executable.execute(executeArgs);
             } catch (error) {                
-                await interaction.reply({ content: error.stack ?? error, ephemeral: true });
+                if (interaction.deferred) {
+                    await interaction.deleteReply();
+                    await interaction.followUp({ content: error.stack ?? error, ephemeral: true });
+                } else {
+                    await interaction.reply({ content: error.stack ?? error, ephemeral: true });
+                }
             }
         });
     }
