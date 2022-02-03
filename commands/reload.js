@@ -5,9 +5,10 @@ module.exports = [
         "Reload",
         "Reloads the bot's commands.",
 
-        async ({ bot, reply }) => {
+        async ({ bot, deferReply, editReply }) => {
+            await deferReply({ ephemeral: true });
             await bot.loadCommands();
-            await reply({ content: "Commands have been reloaded.", ephemeral: true });
+            await editReply("Commands have been reloaded.");
         }
     )
         .setOwnerOnly()

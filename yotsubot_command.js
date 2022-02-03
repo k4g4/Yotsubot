@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, SlashCommandSubcommandBuilder } = require("@discordjs/builders");
 const { Collection } = require("discord.js");
+const { ownerId } = require("./yotsubot_secrets.json");
 
 class YotsubotSubcommand extends SlashCommandSubcommandBuilder {
     constructor(name, description, executor) {
@@ -25,11 +26,11 @@ class YotsubotCommand extends SlashCommandBuilder {
             super.addSubcommand(subcommand);
             this.subcommands.set(subcommand.name, subcommand);
         }
-        this.ownerOnly = false;
+        this.permissions = [];
     }
 
     setOwnerOnly() {
-        this.ownerOnly = true;
+        this.permissions.push({ "id":  ownerId, "type": "USER", "permission": true });
         return this.setDefaultPermission(false);
     }
 

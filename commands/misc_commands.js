@@ -8,7 +8,7 @@ module.exports = [
         "Replies with the bot's ping.",
 
         async ({ bot, reply }) => {
-            await reply(`My ping is \` ${bot.ws.ping} \` ms.`);
+            await reply(`My ping is ${bot.ws.ping} ms.`);
         }
     ),
 
