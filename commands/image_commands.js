@@ -4,23 +4,26 @@ const request = require("phin");
 const { GifUtil, GifFrame, GifCodec, BitmapImage } = require("gifwrap");
 const { MessageAttachment } = require("discord.js");
 
-const urlFilename = url => url.substring(url.lastIndexOf("/") + 1);
+const urlFilename = url => url.substring(url.lastIndexOf("/") + 1, url.indexOf("?"));
 
 class YotsubotImage {
     constructor(data, name, mimetype) {
         this.name = name;
-        this.mimetype = mimetype;
+        this.isGif = mimetype === Jimp.MIME_GIF;
         this.data = data;
+        
+        if (![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)) {
+            throw "Unsupported file type.";
+        }
     }
 
     async readData() {
-        if (this.mimetype === Jimp.MIME_GIF) {
+        if (this.isGif) {
             const gif = await GifUtil.read(this.data);
             this.frames = gif.frames.map(frame => GifUtil.shareAsJimp(Jimp, frame));
-        } else if ([Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(this.mimetype)) {
-            this.frames = [ await Jimp.read(this.data) ];
+            this.delays = gif.frames.map(frame => frame.delayCentisecs);
         } else {
-            throw "Unsupported file type.";
+            this.frames = [ await Jimp.read(this.data) ];
         }
     }
 
@@ -29,11 +32,12 @@ class YotsubotImage {
     }
 
     async getBuffer() {
-        if (this.mimetype === Jimp.MIME_GIF) {
+        if (this.isGif) {
+            const bitmaps = this.frames.map(frame => new BitmapImage(frame.bitmap));
+            GifUtil.quantizeDekker(bitmaps);
             const gifFrames =
-                this.frames
-                    .map(frame =>
-                        new GifFrame(new BitmapImage(frame.bitmap)));
+                bitmaps.map((bitmap, i) =>
+                    new GifFrame(bitmap, { delayCentisecs: this.delays[i] }));
             const codec = new GifCodec();
             const gif = await codec.encodeGif(gifFrames);
             return gif.buffer;
@@ -76,7 +80,7 @@ class ImageSubcommand extends YotsubotSubcommand {
 
     async execute(executeArgs) {
         await addImageArg(executeArgs);
-        return await executable.executor(executeArgs);
+        return await this.executor(executeArgs);
     }
 }
 
@@ -87,7 +91,7 @@ class ImageCommand extends YotsubotCommand {
 
     async execute(executeArgs) {
         await addImageArg(executeArgs);
-        return await executable.executor(executeArgs);
+        return await this.executor(executeArgs);
     }
 }
 
@@ -102,7 +106,7 @@ module.exports = [
                 options.getUser("member") ??
                 member ??
                 user;
-            const avatarUrl = target.displayAvatarURL({ format: "png", dynamic: true });
+            const avatarUrl = target.displayAvatarURL({ size: 4096, format: "png", dynamic: true });
             const avatar = (await request(avatarUrl)).body;
             const filename = urlFilename(avatarUrl);
             const attachment = new MessageAttachment(avatar, filename);
@@ -163,12 +167,13 @@ module.exports = [
         "Scale",
         "Scales an image.",
 
-        async ({ image, options, reply }) => {
+        async ({ image, options, deferReply, editReply }) => {
+            await deferReply();
             scale = options.getNumber("scale");
             image.forEachFrame(frame => frame.scale(scale));
             const buffer = await image.getBuffer();
             const attachment = new MessageAttachment(buffer, image.name);
-            await reply({ files: [attachment] });
+            await editReply({ files: [attachment] });
         }
     )
         .addNumberOption(option =>

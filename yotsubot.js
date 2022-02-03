@@ -71,11 +71,11 @@ class Yotsubot extends Client {
         for (const returnedCommand of response) {
             const command = this.commands.get(returnedCommand.name);
             command.id = returnedCommand.id;
-            fullPermissions.push({ "id": returnedCommand.id, "permissions": command.permissions });
+            fullPermissions.push({ id: returnedCommand.id, permissions: command.permissions });
         }
 
         for (const guild of this.guilds.cache.values()) {
-            await this.application.commands.permissions.set({ "guild": guild, fullPermissions });
+            await this.application.commands.permissions.set({ guild, fullPermissions });
         }
     }
 
