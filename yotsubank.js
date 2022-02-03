@@ -10,8 +10,7 @@ class Yotsubank {
         this.collector = dm.createMessageCollector({ filter: m => this.bankFilter(m) });
         this.collector.on("collect", m => this.handleCollect(m));
         if (!(this.userId in bankData)) {
-            bankData[this.userId] =
-            {
+            bankData[this.userId] = {
                 balance: 0,
                 allowance: 0,
                 lastExpense: getToday(),
@@ -22,7 +21,7 @@ class Yotsubank {
 
     bankFilter(message) {
         if (message.author.id != this.userId) return false;
-        return /^\+?\d*(\.\d+)?$/.test(message.content);
+        return /^\+?\d+(\.\d+)?$/.test(message.content);
     }
 
     async handleCollect(message) {

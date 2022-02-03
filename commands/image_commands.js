@@ -5,6 +5,8 @@ const { GifUtil, GifFrame, GifCodec, BitmapImage } = require("gifwrap");
 const { MessageAttachment } = require("discord.js");
 const { errors } = require("jshint/src/messages");
 
+const CHANNEL_IMAGE_FETCH_LIMIT = 30;
+
 const urlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif)(\?.*)?)$/i;
 const emoteIdRegex = /<a?:.*:(.*)>/;
 const userIdRegex = /<@!?(.*)>/;
@@ -17,23 +19,31 @@ const urlFilename = url =>
 const getAvatar = target => target.displayAvatarURL({ size: 4096, format: "png", dynamic: true });
 
 class YotsubotImage {
-    constructor(data, name, mimetype) {
-        this.name = name;
-        this.isGif = mimetype === Jimp.MIME_GIF;
-        this.data = data;
-
-        if (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)) {
-            throw "Unsupported file type.";
-        }
+    constructor(imageUrl) {
+        this.imageUrl = imageUrl;
+        this.filename = urlFilename(imageUrl);
     }
 
     async readData() {
+        const response = await request(this.imageUrl);
+        const mimetype = response.headers["content-type"];
+        
+        this.isGif = mimetype === Jimp.MIME_GIF;
+
+        if (response.statusCode !== 200) {
+            throw "Failed to download the image.";
+        }
+        if (!(mimetype?.startsWith("image/")) ||
+            (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype))) {
+            throw "Unsupported file type.";
+        }
+
         if (this.isGif) {
-            const gif = await GifUtil.read(this.data);
+            const gif = await GifUtil.read(response.body);
             this.frames = gif.frames.map(frame => GifUtil.shareAsJimp(Jimp, frame));
             this.delays = gif.frames.map(frame => frame.delayCentisecs);
         } else {
-            this.frames = [ await Jimp.read(this.data) ];
+            this.frames = [ await Jimp.read(response.body) ];
         }
     }
 
@@ -57,8 +67,20 @@ class YotsubotImage {
     }
 
     async getAttachment() {
-        return new MessageAttachment(await this.getBuffer(), this.name);
+        return new MessageAttachment(await this.getBuffer(), this.filename);
     }
+}
+
+async function fetchChannelImages(bot, channelId) {
+    const channel = await bot.channels.fetch(channelId);
+    const messages = await channel.messages.fetch({ limit: CHANNEL_IMAGE_FETCH_LIMIT });
+    const imageMessages = messages.filter(message =>
+        message.attachments.size > 0 || urlRegex.test(message.content));
+
+    return imageMessages.map(message =>
+        (message.attachments.size > 0) ?
+        message.attachments.map(attachment => attachment.url) :
+        urlRegex.exec(message.content)[1]).flat();
 }
 
 async function addImageArg(executeArgs) {
@@ -67,15 +89,11 @@ async function addImageArg(executeArgs) {
     const imageOption = executeArgs.options.getString("image");
 
     if (!imageOption) {
-        const channel = await executeArgs.bot.channels.fetch(executeArgs.channelId);
-        const messages = await channel.messages.fetch({ limit: 20 });
-        const message = messages.find(message =>
-            message.attachments.size > 0 || urlRegex.test(message.content));
+        const channelImageUrls =
+            await fetchChannelImages(executeArgs.bot, executeArgs.channelId);
 
-        imageUrl =
-            (message.attachments.size > 0) ?
-            message.attachments.first().url :
-            urlRegex.exec(message.content)[1];
+        imageUrl = channelImageUrls[0];
+
     } else if (emoteIdRegex.test(imageOption)) {
         const emoteId = emoteIdRegex.exec(imageOption)[1];
         if (!guild) {
@@ -89,6 +107,7 @@ async function addImageArg(executeArgs) {
         }
 
         imageUrl = emote.url;
+
     } else if (userIdRegex.test(imageOption)) {
         const userId = userIdRegex.exec(imageOption)[1];
         let member;
@@ -103,6 +122,7 @@ async function addImageArg(executeArgs) {
         }
 
         imageUrl = getAvatar(member);
+
     } else if (urlRegex.test(imageOption)) {
         imageUrl = imageOption;
     }
@@ -110,14 +130,7 @@ async function addImageArg(executeArgs) {
         throw "The ` image ` option must be a valid URL, user, or emote.";
     }
 
-    const filename = urlFilename(imageUrl);
-    const response = await request(imageUrl);
-    const mimetype = response.headers["content-type"];
-
-    if (response.statusCode !== 200 || !(mimetype?.startsWith("image/"))) {
-        throw "Failed to download the image.";
-    }
-    executeArgs.image = new YotsubotImage(response.body, filename, mimetype);
+    executeArgs.image = new YotsubotImage(imageUrl);
     await executeArgs.image.readData();
 }
 
@@ -236,5 +249,59 @@ module.exports = [
                 .setMinValue(0.2).setMaxValue(4)
                 .setRequired(true))
                 
-        .addImageOption()
+        .addImageOption(),
+
+    new YotsubotCommand(
+        "Gif",
+        "Creates a GIF from the images in the channel.",
+
+        async ({ bot, channelId, options, deferReply, editReply }) => {
+            await deferReply();
+
+            const count = options.getInteger("count");
+            const delay = options.getNumber("delay") * 100 ?? 30;
+
+            const channelImageUrls = await fetchChannelImages(bot, channelId);
+            const images =
+                channelImageUrls
+                    .slice(0, count)
+                    .map(imageUrl => new YotsubotImage(imageUrl));
+            
+            for (const image of images) await image.readData();
+
+            const frames = images.map(image => image.frames).flat();
+            const delays = images.map(image => image.isGif ? image.delays : delay).flat();
+
+            const { maxWidth, maxHeight } =
+                GifUtil.getMaxDimensions(
+                    frames
+                        .map(frame => new BitmapImage(frame.bitmap))
+                        .map(bitmap => new GifFrame(bitmap)));
+            
+            for (const frame of frames) frame.scaleToFit(maxWidth, maxHeight);
+
+            const bitmaps = frames.map(frame => new BitmapImage(frame.bitmap));
+            GifUtil.quantizeDekker(bitmaps);
+            const gifFrames =
+                bitmaps.map((bitmap, i) =>
+                    new GifFrame(bitmap, { delayCentisecs: delays[i] }));
+            const codec = new GifCodec();
+            const gif = await codec.encodeGif(gifFrames);
+            const attachment = new MessageAttachment(gif.buffer, "image.gif");
+
+            await editReply({ files: [ attachment ] });
+        }
+    )
+        .addIntegerOption(option =>
+            option
+                .setName("count")
+                .setDescription("The number of images to fetch from the channel. " +
+                                `Limited to the last ${CHANNEL_IMAGE_FETCH_LIMIT} messages.`)
+                .setMinValue(2).setMaxValue(30))
+
+        .addNumberOption(option =>
+            option
+                .setName("delay")
+                .setDescription("Delay between frames, in seconds.")
+                .setMinValue(0.05).setMaxValue(2))
 ];

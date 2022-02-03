@@ -30,7 +30,10 @@ class YotsubotCommand extends SlashCommandBuilder {
     }
 
     setOwnerOnly() {
-        this.permissions.push({ id:  ownerId, type: "USER", permission: true });
+        this.permissions.push({
+            id:  ownerId,
+            type: "USER",
+            permission: true });
         return this.setDefaultPermission(false);
     }
 
