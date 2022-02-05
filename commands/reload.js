@@ -9,7 +9,7 @@ module.exports = [
             await deferReply({ ephemeral: true });
             await bot.loadCommands();
             await editReply("Commands have been reloaded.");
-        }
-    )
+        })
+        
         .setOwnerOnly()
 ];

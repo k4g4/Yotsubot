@@ -9,8 +9,7 @@ module.exports = [
 
         async ({ bot, reply }) => {
             await reply(`My ping is ${bot.ws.ping} ms.`);
-        }
-    ),
+        }),
 
     new YotsubotCommand(
         "User",
@@ -45,8 +44,8 @@ module.exports = [
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
             }
             await reply({ embeds: [embed] });
-        }
-    )
+        })
+        
         .addUserOption(option =>
                 option
                     .setName("member")

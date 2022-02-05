@@ -17,8 +17,7 @@ module.exports = [
                 if (Yotsubank.hasAccount(user.id)) throw "You already have an account.";
                 await Yotsubank.registerBank(bot, user.id);
                 await reply("New bank account created.");
-            }
-        ),
+            }),
     
         new YotsubotSubcommand(
             "Withdraw",
@@ -29,8 +28,8 @@ module.exports = [
                 if (!bank) throw NO_ACC_ERROR;
                 bank.transact(-options.getNumber("amount"));
                 await reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
-            }
-        )
+            })
+
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to withdraw.")
@@ -45,8 +44,8 @@ module.exports = [
                 if (!bank) throw NO_ACC_ERROR;
                 bank.transact(options.getNumber("amount"));
                 await reply(`Your new balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
-            }
-        )
+            })
+
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to deposit.")
@@ -61,8 +60,7 @@ module.exports = [
                 if (!bank) throw NO_ACC_ERROR;
                 bank.transact(0);
                 await reply(`Your balance is \`${Yotsubank.toMoney(bank.balance)}\`.`);
-            }
-        ),
+            }),
     
         new YotsubotSubcommand(
             "Allowance",
@@ -73,11 +71,10 @@ module.exports = [
                 if (!bank) throw NO_ACC_ERROR;
                 bank.allowance = options.getNumber("amount");
                 await reply(`Allowance has been set to \`${Yotsubank.toMoney(bank.allowance)}\`.`);
-            }
-        )
+            })
+
             .addNumberOption(option => option
                     .setName("amount")
                     .setDescription("Amount of money to receive each day.")
-                    .setMinValue(0).setMaxValue(1000).setRequired(true))
-    )
+                    .setMinValue(0).setMaxValue(1000).setRequired(true)))
 ];

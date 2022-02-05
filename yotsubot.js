@@ -38,7 +38,8 @@ class Yotsubot extends Client {
                 errors: {
                     NOT_IN_GUILD: "You must be in a server to use this command.",
                     FOREIGN_EMOTE: "The emote must belong to this server.",
-                    USER_NOT_FOUND: "Couldn't find the user."
+                    USER_NOT_FOUND: "Couldn't find the user.",
+                    NO_IMAGES_FOUND: "There are no recent images in the channel."
                 }
             };
 

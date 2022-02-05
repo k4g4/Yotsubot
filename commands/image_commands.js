@@ -3,11 +3,11 @@ const Jimp = require("jimp");
 const request = require("phin");
 const { GifUtil, GifFrame, GifCodec, BitmapImage } = require("gifwrap");
 const { MessageAttachment } = require("discord.js");
-const { errors } = require("jshint/src/messages");
 
 const CHANNEL_IMAGE_FETCH_LIMIT = 30;
+const IMPACT_FONT_FILE = "resources/impact.fnt";
 
-const urlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif)(\?.*)?)$/i;
+const imageUrlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif)(\?.*)?)$/i;
 const emoteIdRegex = /<a?:.*:(.*)>/;
 const userIdRegex = /<@!?(.*)>/;
 
@@ -71,16 +71,18 @@ class YotsubotImage {
     }
 }
 
-async function fetchChannelImages(bot, channelId) {
+async function fetchChannelImageUrls(bot, channelId) {
     const channel = await bot.channels.fetch(channelId);
     const messages = await channel.messages.fetch({ limit: CHANNEL_IMAGE_FETCH_LIMIT });
-    const imageMessages = messages.filter(message =>
-        message.attachments.size > 0 || urlRegex.test(message.content));
 
-    return imageMessages.map(message =>
-        (message.attachments.size > 0) ?
-        message.attachments.map(attachment => attachment.url) :
-        urlRegex.exec(message.content)[1]).flat();
+    return messages
+            .map(message =>
+                message.attachments
+                .filter(attachment => imageUrlRegex.test(attachment.url))
+                .map(attachment => attachment.url)
+                .concat(imageUrlRegex.test(message.content) ?
+                    [ imageUrlRegex.exec(message.content)[1] ] : []))
+            .flat();
 }
 
 async function addImageArg(executeArgs) {
@@ -90,8 +92,9 @@ async function addImageArg(executeArgs) {
 
     if (!imageOption) {
         const channelImageUrls =
-            await fetchChannelImages(executeArgs.bot, executeArgs.channelId);
+            await fetchChannelImageUrls(executeArgs.bot, executeArgs.channelId);
 
+        if (channelImageUrls.length === 0) throw executeArgs.errors.NO_IMAGE_FOUND;
         imageUrl = channelImageUrls[0];
 
     } else if (emoteIdRegex.test(imageOption)) {
@@ -123,7 +126,7 @@ async function addImageArg(executeArgs) {
 
         imageUrl = getAvatar(member);
 
-    } else if (urlRegex.test(imageOption)) {
+    } else if (imageUrlRegex.test(imageOption)) {
         imageUrl = imageOption;
     }
     else {
@@ -137,7 +140,7 @@ async function addImageArg(executeArgs) {
 const createImageOption = option =>
         option
             .setName("image")
-            .setDescription("Image URL. Leave blank to use most recent chat image.");
+            .setDescription("Image URL, user mention or server emote. Leave blank to use most recent chat image.");
 
 class ImageSubcommand extends YotsubotSubcommand {
     addImageOption() {
@@ -184,8 +187,8 @@ module.exports = [
             const attachment = new MessageAttachment(avatar, filename);
 
             await reply({ files: [ attachment ]});
-        }
-    )
+        })
+
         .addUserOption(option =>
             option
                 .setName("member")
@@ -213,8 +216,8 @@ module.exports = [
             const attachment = new MessageAttachment(emoteImage, filename);
 
             await reply({ files: [ attachment ]});
-        }
-    )
+        })
+
         .addStringOption(option =>
             option
                 .setName("emote")
@@ -228,8 +231,8 @@ module.exports = [
         async ({ image, reply }) => {
             image.forEachFrame(frame => frame.invert());
             await reply({ files: [ await image.getAttachment() ] });
-        }
-    )
+        })
+
         .addImageOption(),
 
     new ImageCommand(
@@ -240,8 +243,8 @@ module.exports = [
             const scale = options.getNumber("scale");
             image.forEachFrame(frame => frame.scale(scale));
             await reply({ files: [ await image.getAttachment() ] });
-        }
-    )
+        })
+
         .addNumberOption(option =>
             option
                 .setName("scale")
@@ -251,17 +254,72 @@ module.exports = [
                 
         .addImageOption(),
 
+    new ImageCommand(
+        "Meme",
+        "Creates a meme from the provided captions.",
+
+        async ({ image, options, reply }) => {
+            const topCaption = (options.getString("top") ?? "").toUpperCase();
+            const bottomCaption = (options.getString("bottom") ?? "").toUpperCase();
+
+            if (!topCaption && !bottomCaption) throw "Provide at least one caption.";
+
+            const font = await Jimp.loadFont(IMPACT_FONT_FILE);
+            const memeWidth = 800;
+
+            image.forEachFrame(frame =>
+                frame
+                    .resize(memeWidth, Jimp.AUTO)
+                    .print(
+                        font,
+                        0,
+                        20,
+                        {
+                            text: topCaption,
+                            alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER
+                        },
+                        memeWidth)
+                    .print(
+                        font,
+                        0,
+                        -20,
+                        {
+                            text: bottomCaption,
+                            alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+                            alignmentY: Jimp.VERTICAL_ALIGN_BOTTOM
+                        },
+                        memeWidth,
+                        frame.bitmap.height));
+
+            await reply({ files: [ await image.getAttachment() ] });
+        })
+
+        .addImageOption()
+
+        .addStringOption(option =>
+            option
+                .setName("top")
+                .setDescription("Top meme caption."))
+
+        .addStringOption(option =>
+            option
+                .setName("bottom")
+                .setDescription("Bottom meme caption.")),
+
     new YotsubotCommand(
         "Gif",
         "Creates a GIF from the images in the channel.",
 
-        async ({ bot, channelId, options, deferReply, editReply }) => {
+        async ({ bot, channelId, errors, options, deferReply, editReply }) => {
             await deferReply();
 
-            const count = options.getInteger("count");
+            const count = options.getInteger("count") ?? 30;
             const delay = options.getNumber("delay") * 100 ?? 30;
 
-            const channelImageUrls = await fetchChannelImages(bot, channelId);
+            const channelImageUrls = await fetchChannelImageUrls(bot, channelId);
+
+            if (channelImageUrls.length === 0) throw errors.NO_IMAGE_FOUND;
+
             const images =
                 channelImageUrls
                     .slice(0, count)
@@ -278,7 +336,7 @@ module.exports = [
                         .map(frame => new BitmapImage(frame.bitmap))
                         .map(bitmap => new GifFrame(bitmap)));
             
-            for (const frame of frames) frame.scaleToFit(maxWidth, maxHeight);
+            for (const frame of frames) frame.contain(maxWidth, maxHeight);
 
             const bitmaps = frames.map(frame => new BitmapImage(frame.bitmap));
             GifUtil.quantizeDekker(bitmaps);
@@ -290,8 +348,8 @@ module.exports = [
             const attachment = new MessageAttachment(gif.buffer, "image.gif");
 
             await editReply({ files: [ attachment ] });
-        }
-    )
+        })
+
         .addIntegerOption(option =>
             option
                 .setName("count")
