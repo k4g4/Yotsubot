@@ -30,13 +30,12 @@ class YotsubotImage {
         
         this.isGif = mimetype === Jimp.MIME_GIF;
 
-        if (response.statusCode !== 200) {
+        if (response.statusCode !== 200)
             throw "Failed to download the image.";
-        }
+        
         if (!(mimetype?.startsWith("image/")) ||
-            (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype))) {
+            (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)))
             throw "Unsupported file type.";
-        }
 
         if (this.isGif) {
             const gif = await GifUtil.read(response.body);
@@ -235,6 +234,46 @@ module.exports = [
 
         .addImageOption(),
 
+        new ImageCommand(
+            "Posterize",
+            "Posterizes an image.",
+    
+            async ({ image, options, reply }) => {
+                const level = Number(options.getString("strength"));
+                image.forEachFrame(frame => frame.posterize(level));
+                await reply({ files: [ await image.getAttachment() ] });
+            })
+    
+            .addStringOption(option =>
+                option
+                    .setName("strength")
+                    .setDescription("Posterization strength.")
+                    .addChoice("strong", "3")
+                    .addChoice("medium", "5")
+                    .addChoice("weak", "7"))
+        
+            .addImageOption(),
+
+        new ImageCommand(
+            "Pixelate",
+            "Pixelates an image.",
+    
+            async ({ image, options, reply }) => {
+                const level = Number(options.getString("strength"));
+                image.forEachFrame(frame => frame.pixelate(level));
+                await reply({ files: [ await image.getAttachment() ] });
+            })
+    
+            .addStringOption(option =>
+                option
+                    .setName("strength")
+                    .setDescription("Pixelization strength.")
+                    .addChoice("strong", "50")
+                    .addChoice("medium", "20")
+                    .addChoice("weak", "10"))
+        
+            .addImageOption(),
+        
     new ImageCommand(
         "Scale",
         "Scales an image.",
@@ -254,6 +293,34 @@ module.exports = [
                 
         .addImageOption(),
 
+    new ImageCommand(
+        "Rotate",
+        "Rotates an image.",
+        
+        async ({ image, options, reply }) => {
+            const degrees =
+                options.getNumber("degrees") *
+                (options.getString("direction") == "cc" ? 1 : -1);
+            image.forEachFrame(frame => frame.rotate(degrees));
+            await reply({ files: [ await image.getAttachment() ] });
+        })
+        
+        .addNumberOption(option =>
+            option
+                .setName("degrees")
+                .setDescription("Degrees to rotate image.")
+                .setMinValue(1).setMaxValue(360)
+                .setRequired(true))
+            
+        .addStringOption(option =>
+            option
+                .setName("direction")
+                .setDescription("Rotation direction.")
+                .addChoice("clockwise", "c")
+                .addChoice("counter-clockwise", "cc"))
+        
+        .addImageOption(),
+                
     new ImageCommand(
         "Meme",
         "Creates a meme from the provided captions.",
