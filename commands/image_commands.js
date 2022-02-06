@@ -239,7 +239,7 @@ module.exports = [
             "Posterizes an image.",
     
             async ({ image, options, reply }) => {
-                const level = Number(options.getString("strength"));
+                const level = Number(options.getString("strength") ?? "5");
                 image.forEachFrame(frame => frame.posterize(level));
                 await reply({ files: [ await image.getAttachment() ] });
             })
@@ -259,7 +259,7 @@ module.exports = [
             "Pixelates an image.",
     
             async ({ image, options, reply }) => {
-                const level = Number(options.getString("strength"));
+                const level = Number(options.getString("strength") ?? "20");
                 image.forEachFrame(frame => frame.pixelate(level));
                 await reply({ files: [ await image.getAttachment() ] });
             })
