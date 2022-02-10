@@ -46,8 +46,8 @@ class Yotsubot extends Client {
             try {
                 await executable.execute(executeArgs);
             } catch (error) {                
-                if (interaction.deferred) {
-                    await interaction.deleteReply();
+                if (interaction.deferred || interaction.replied) {
+                    if (!interaction.ephemeral) await interaction.deleteReply();
                     await interaction.followUp({ content: error.stack ?? error, ephemeral: true });
                 } else {
                     await interaction.reply({ content: error.stack ?? error, ephemeral: true });

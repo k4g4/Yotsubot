@@ -5,6 +5,7 @@ const { GifUtil, GifFrame, GifCodec, BitmapImage } = require("gifwrap");
 const { MessageAttachment } = require("discord.js");
 
 const CHANNEL_IMAGE_FETCH_LIMIT = 30;
+const MEME_WIDTH = 800;
 const IMPACT_FONT_FILE = "resources/impact.fnt";
 
 const imageUrlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif)(\?.*)?)$/i;
@@ -36,6 +37,8 @@ class YotsubotImage {
         if (!(mimetype?.startsWith("image/")) ||
             (!this.isGif && ![Jimp.MIME_BMP, Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(mimetype)))
             throw "Unsupported file type.";
+
+        
 
         if (this.isGif) {
             const gif = await GifUtil.read(response.body);
@@ -332,11 +335,10 @@ module.exports = [
             if (!topCaption && !bottomCaption) throw "Provide at least one caption.";
 
             const font = await Jimp.loadFont(IMPACT_FONT_FILE);
-            const memeWidth = 800;
 
             image.forEachFrame(frame =>
                 frame
-                    .resize(memeWidth, Jimp.AUTO)
+                    .resize(MEME_WIDTH, Jimp.AUTO)
                     .print(
                         font,
                         0,
@@ -345,7 +347,7 @@ module.exports = [
                             text: topCaption,
                             alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER
                         },
-                        memeWidth)
+                        MEME_WIDTH)
                     .print(
                         font,
                         0,
@@ -355,13 +357,11 @@ module.exports = [
                             alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
                             alignmentY: Jimp.VERTICAL_ALIGN_BOTTOM
                         },
-                        memeWidth,
+                        MEME_WIDTH,
                         frame.bitmap.height));
 
             await reply({ files: [ await image.getAttachment() ] });
         })
-
-        .addImageOption()
 
         .addStringOption(option =>
             option
@@ -371,7 +371,9 @@ module.exports = [
         .addStringOption(option =>
             option
                 .setName("bottom")
-                .setDescription("Bottom meme caption.")),
+                .setDescription("Bottom meme caption."))
+
+        .addImageOption(),
 
     new YotsubotCommand(
         "Gif",

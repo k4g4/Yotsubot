@@ -1,6 +1,6 @@
 
 const { MessageEmbed } = require("discord.js");
-const { YotsubotCommand, YotsubotSubcommand } = require("../yotsubot_command.js");
+const { YotsubotCommand, YotsubotSubcommand, YotsubotActions } = require("../yotsubot_command.js");
 
 module.exports = [
     new YotsubotCommand(
@@ -72,5 +72,31 @@ module.exports = [
         .addUserOption(option =>
                 option
                     .setName("member")
-                    .setDescription("The member to get information for."))
+                    .setDescription("The member to get information for.")),
+
+    new YotsubotCommand(
+        "Buttons",
+        "Select from the available buttons.",
+        
+        async ({ reply }) => {
+            const actionRow = new YotsubotActions(
+                {
+                    type: "BUTTON",
+                    label: "Button A",
+                    style: "PRIMARY",
+                    executor: async interaction => {
+                        console.log('test');
+                        await interaction.update("goodbye world!");
+                    }
+                });
+            
+            const message = await reply({
+                content: "hello world!",
+                components: [ actionRow ],
+                ephemeral: true,
+                fetchReply: true });
+            actionRow.createCollectors(message);
+        })
+
+        .setOwnerOnly()
 ];

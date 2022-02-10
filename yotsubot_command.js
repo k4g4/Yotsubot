@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, SlashCommandSubcommandBuilder } = require("@discordjs/builders");
-const { Collection } = require("discord.js");
+const { Collection, MessageActionRow } = require("discord.js");
 const { ownerId } = require("./yotsubot_secrets.json");
 
 class YotsubotSubcommand extends SlashCommandSubcommandBuilder {
@@ -42,5 +42,24 @@ class YotsubotCommand extends SlashCommandBuilder {
     }
 }
 
+class YotsubotActions extends MessageActionRow {
+    constructor(...actions) {
+        for (const action of actions)
+            action.customId = action.label;
+        super({ components: actions });
+        this.actions = actions;
+    }
+
+    createCollectors(message) {
+        for (const action of this.actions) {
+            const collector = message.createMessageComponentCollector({
+                filter: interaction => interaction.customId === action.customid
+            });
+            collector.on("collect", action.executor);
+        }
+    }
+}
+
 exports.YotsubotCommand = YotsubotCommand;
 exports.YotsubotSubcommand = YotsubotSubcommand;
+exports.YotsubotActions = YotsubotActions;
